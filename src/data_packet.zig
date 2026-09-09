@@ -14,6 +14,12 @@ pub const DataPacket = struct {
     }
 };
 
-// test "DataPacket Construct" {
+test "DataPacket Construct" {
+    const input_slices = [_]*const [15:0]u8{ "[TEMP=017.17 C]", "[TEMP=167.00 C]", "[TEMP=018.12 C]", "[TEMP=-01.00 C]" };
+    const matching = [_]f32{ 17.17, 167.0, 18.12, -1.0 };
 
-// }
+    for (input_slices, 0..) |slice, idx| {
+        const packet: DataPacket = try .from_slice(slice);
+        try std.testing.expectApproxEqAbs(packet.temperature, matching[idx], 0.11);
+    }
+}

@@ -24,6 +24,8 @@ pub fn start(io: std.Io, allocator: std.mem.Allocator, port: ?u16, line_buffer: 
     defer server.deinit();
     defer server.stop();
 
+    // prerender webpage so there is not an empty page.
+
     var router = try server.router(.{});
     router.get("/", home_page, .{});
 

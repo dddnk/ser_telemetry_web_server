@@ -26,6 +26,9 @@ pub fn server_start(io: std.Io, allocator: std.mem.Allocator, device: std.Io.Fil
     var page_buffer: std.ArrayList(u8) = try .initCapacity(allocator, 100);
     defer page_buffer.deinit(allocator);
 
+    // prerender webpage so there is not an empty page.
+    try web.format_web_page(allocator, line_buffer.items, &page_buffer);
+
     var ser_pro: std.Thread = try .spawn(.{}, listen_serial, .{ io, allocator, device, &line_buffer, &page_buffer });
     defer ser_pro.join();
 
@@ -35,4 +38,5 @@ pub fn server_start(io: std.Io, allocator: std.mem.Allocator, device: std.Io.Fil
 // Test stuff
 test {
     _ = @import("webserver.zig");
+    _ = @import("data_packet.zig");
 }
