@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>
+			feed
+		</title>
+		<style>
+		:root {
+			--background-colour: #00a;
+			--foreground-colour: #fe0;
+		}
+		::selection {
+			background-color: var(--foreground-colour);
+			color: var(--background-colour);
+		}
+		body {
+			font-family: sans-serif;
+			background-color: var(--background-colour);
+			color: var(--foreground-colour);
+		}
+
+		#termbox {
+			border: 1px solid var(--foreground-colour);
+			width: calc(100vw - 2em);
+			height: 20em;
+			overflow-y:scroll;
+		}
+		</style>
+	</head>
+	<body>
+		<h1>
+			Example feed
+		</h1>
+		<div id="termbox">
+		[#vals]
+		</div>
+	</body>
+</html>

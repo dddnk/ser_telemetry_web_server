@@ -1,0 +1,28 @@
+.{
+    .name = .ser_broadcast,
+    .version = "0.1.0",
+    .fingerprint = 0x2b12137c088990f5,
+    .minimum_zig_version = "0.16.0",
+    .dependencies = .{
+        .serial = .{
+            .url = "git+https://github.com/ZigEmbeddedGroup/serial?ref=master#25b58d0ea62f7bfc33e6c147c1c02193a50c65fb",
+            .hash = "serial-0.0.1-PoeRzD66AACCQUHzsIssi6bOcEtnQFPebT6WLvno0I_p",
+        },
+        .clap = .{
+            .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.12.0.tar.gz",
+            .hash = "clap-0.12.0-oBajB7foAQDqlSwaSG5g0yq7xGbQARUsBk5T64gAOqP5",
+        },
+        .httpz = .{
+            .url = "git+https://github.com/karlseguin/http.zig?ref=master#9b14af98fde5e98abb9a8376fe02b42003e835bf",
+            .hash = "httpz-0.0.0-PNVzrMgTCQDhzfBLRRebTx9LU056Ph2erdN9-42rFbhj",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        // For example...
+        //"LICENSE",
+        //"README.md",
+    },
+}
