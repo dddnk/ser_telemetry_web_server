@@ -5,7 +5,7 @@ const zig_serial = @import("serial");
 const web = @import("webserver.zig");
 
 fn listen_serial(io: std.Io, alloc: std.mem.Allocator, device: std.Io.File, line_buffer: *std.ArrayList(web.PACKET_TYPE), page_buffer: *std.ArrayList(u8)) !void {
-    var r_buf: [64]u8 = undefined;
+    var r_buf: [128]u8 = undefined;
     var reader = device.reader(io, &r_buf);
 
     while (reader.interface.takeDelimiterExclusive('\n')) |line| {

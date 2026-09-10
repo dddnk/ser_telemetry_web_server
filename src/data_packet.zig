@@ -1,5 +1,16 @@
 const std = @import("std");
 
+const example_schema = "[TEMP=000.00 C]";
+
+const field_1 = range_finder(u8, example_schema, .{ '0', ' ' }, 0) orelse @compileError("Could not find indexes for field 1");
+
+///Used for finding indexes of fields at compile time.
+fn range_finder(comptime T: type, slice: []const T, tokens: [2]T, offset: usize) ?[2]usize {
+    const first = std.mem.findScalarPos(T, slice, offset, tokens[0]) orelse return null;
+    const last = std.mem.findScalarPos(T, slice, first, tokens[1]) orelse return null;
+    return [2]usize{ first, last };
+}
+
 /// Datapacket type. Lines are read and parsed into this datatype.
 pub const DataPacket = struct {
     temperature: f32,
@@ -9,9 +20,8 @@ pub const DataPacket = struct {
 
     // Constructor.
     pub fn from_slice(input_slice: []const u8) std.fmt.ParseFloatError!Self {
-        // Looks like this: [TEMP=017.57 C]
-        const temp = try std.fmt.parseFloat(@FieldType(Self, "temperature"), input_slice[6..12]);
-        return Self{ .temperature = temp };
+        const temp = try std.fmt.parseFloat(@FieldType(Self, "temperature"), input_slice[field_1[0]..field_1[1]]);
+        return Self{ .temperature = temp, .seconds = null };
     }
 };
 
