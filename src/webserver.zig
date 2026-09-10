@@ -27,7 +27,7 @@ pub fn start(io: std.Io, allocator: std.mem.Allocator, port: ?u16, line_buffer: 
     var router = try server.router(.{});
     router.get("/", home_page, .{});
 
-    std.debug.print("Homepage at: http://localhost:{d}\n", .{final_port});
+    std.debug.print("Homepage at: \u{001b}[34mhttp://localhost:{d}\u{001b}[0m\n", .{final_port});
 
     try server.listen();
 }
@@ -104,17 +104,8 @@ fn joinPrefixSuffix(comptime T: type, allocator: std.mem.Allocator, separator: [
     return buf;
 }
 
-pub inline fn lerp(comptime T: type, a: T, b: T, d: T) T {
-    return ((b - a) * d) + a;
-}
-
-pub inline fn alerp(comptime T: type, a: T, b: T, d: T) T {
-    return (d - a) / (b - a);
-}
-
 pub inline fn remap(comptime T: type, prev_range: [2]T, neo_range: [2]T, value: T) T {
     return ((neo_range[1] - neo_range[0]) * ((value - prev_range[0]) / (prev_range[1] - prev_range[0]))) + neo_range[0];
-    // return lerp(T, neo_range[0], neo_range[1], alerp(T, prev_range[0], prev_range[1], value));
 }
 
 /// Creates an svg graph from info.
@@ -134,17 +125,12 @@ fn format_webgraph(allocator: std.mem.Allocator, lines: []const PACKET_TYPE) ![]
 
     var temp_lines: std.ArrayList(u8) = try .initCapacity(allocator, 100 + (lines.len * 6));
     defer temp_lines.deinit(allocator);
-    try temp_lines.print(allocator, "<svg height=\"{}\" width=\"{}\" viewbox=\"0 0 {} {}\">\n", .{ height, width, width, height });
-
-    {
-        try temp_lines.print(allocator, "<polyline points=\"", .{});
-
-        for (lines, 0..) |packet_lines, idx| {
-            try temp_lines.print(allocator, " {},{} ", .{ remap(f32, [2]f32{ 0, @floatFromInt(lines.len - 1) }, [2]f32{ 0, @floatFromInt(width) }, @floatFromInt(idx)), remap(f32, .{ min_temp, max_temp }, .{ @as(f32, @floatFromInt(height)) - graph_padding, graph_padding }, packet_lines.temperature) });
-        }
-
-        try temp_lines.print(allocator, "\" style=\"fill:none;stroke:var(--foreground-colour);stroke-width:1\" />", .{});
+    try temp_lines.print(allocator, "<svg viewbox=\"0 0 {} {}\">\n", .{ width, height });
+    try temp_lines.print(allocator, "<polyline points=\"", .{});
+    for (lines, 0..) |packet_lines, idx| {
+        try temp_lines.print(allocator, " {},{} ", .{ remap(f32, [2]f32{ 0, @floatFromInt(lines.len - 1) }, .{ graph_padding, @as(f32, @floatFromInt(width)) - graph_padding }, @floatFromInt(idx)), remap(f32, .{ min_temp, max_temp }, .{ @as(f32, @floatFromInt(height)) - text_size, text_size }, packet_lines.temperature) });
     }
+    try temp_lines.print(allocator, "\" style=\"fill:none;stroke:var(--foreground-colour);vector-effect: non-scaling-stroke;stroke-width:1px\" />", .{});
     // Min and max legend
     try temp_lines.print(allocator, "<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{} *C</text>", .{ text_size, text_size, max_temp });
     try temp_lines.print(allocator, "<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{} *C</text>", .{ height, text_size, min_temp });
@@ -174,9 +160,7 @@ test "remap_function" {
         const iter_len: usize = @max(@max(old_ranges.len, new_ranges.len), @max(initial_values.len, expected_values.len));
 
         for (0..iter_len) |idx| {
-            const ground_res = (lerp(float, new_ranges[idx][0], new_ranges[idx][1], alerp(float, old_ranges[idx][0], old_ranges[idx][1], initial_values[idx])));
             const remap_res = remap(float, old_ranges[idx], new_ranges[idx], initial_values[idx]);
-            try std.testing.expect(ground_res == expected_values[idx]);
             try std.testing.expect(remap_res == expected_values[idx]);
         }
     }

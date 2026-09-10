@@ -3,6 +3,7 @@ const std = @import("std");
 /// Datapacket type. Lines are read and parsed into this datatype.
 pub const DataPacket = struct {
     temperature: f32,
+    seconds: ?f32,
 
     const Self = @This();
 

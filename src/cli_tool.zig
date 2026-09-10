@@ -13,7 +13,7 @@ pub fn debug_listen_serial(io: std.Io, serial: std.Io.File) !void {
     // Read through the input stream
     while (reader.interface.takeDelimiterExclusive('\n')) |line| {
         reader.interface.toss(1);
-        std.debug.print("[{d}] >> {s}\n", .{ std.Io.Timestamp.now(io, .boot).toSeconds(), line });
+        std.debug.print("\u{001b}[33m[{d}] >> \u{001b}[0m{s}\n", .{ std.Io.Timestamp.now(io, .boot).toSeconds(), line });
     } else |err| {
         if (err != error.EndOfStream) {
             return err;
@@ -38,7 +38,7 @@ pub fn list_devices(io: std.Io) !void {
 pub fn setup_serial(io: std.Io, device: []const u8, baudrate: ?u32) !std.Io.File {
     const serial = std.Io.Dir.cwd().openFile(io, device, .{ .mode = .read_write }) catch |err| {
         if (err == error.FileNotFound) {
-            std.debug.print("error: The Device [{s}] was not found.\n", .{device});
+            std.debug.print("\u{001b}[31mError: The Device [{s}] was not found.\u{001b}[0m\n", .{device});
         }
         return err;
     };
@@ -51,6 +51,6 @@ pub fn setup_serial(io: std.Io, device: []const u8, baudrate: ?u32) !std.Io.File
         .handshake = .none,
     });
     errdefer serial.close(io);
-    std.debug.print("Listening at [{s}], baudrate {}\n", .{ device, baudrate orelse 9600 });
+    std.debug.print("Listening at [\u{001b}[33m{s}\u{001b}[0m], baudrate \u{001b}[32m{}\u{001b}[0m\n", .{ device, baudrate orelse 9600 });
     return serial;
 }

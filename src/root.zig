@@ -10,7 +10,12 @@ fn listen_serial(io: std.Io, alloc: std.mem.Allocator, device: std.Io.File, line
 
     while (reader.interface.takeDelimiterExclusive('\n')) |line| {
         reader.interface.toss(1);
-        try line_buffer.append(alloc, try web.packet.DataPacket.from_slice(line));
+        // Skip if in invalid form
+        if (web.packet.DataPacket.from_slice(line)) |pkt| {
+            try line_buffer.append(alloc, pkt);
+        } else |_| {
+            std.debug.print("Skipping packet... [{s}] is malformed or unreadable.", .{line});
+        }
         try web.format_web_page(alloc, line_buffer.items, page_buffer);
     } else |err| {
         if (err != error.EndOfStream) {
