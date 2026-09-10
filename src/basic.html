@@ -18,12 +18,24 @@
 			background-color: var(--background-colour);
 			color: var(--foreground-colour);
 		}
-
 		#termbox {
 			border: 1px solid var(--foreground-colour);
-			width: calc(100vw - 2em);
-			height: 20em;
 			overflow-y:scroll;
+			flex-grow: 1;
+		}
+		#svg-wrapper {
+			border: 1px solid var(--foreground-colour);
+			width: 40vw;
+			flex-grow: 1;
+		}
+		#svg-wrapper svg {
+			width: 100%;
+			height:auto;
+		}
+		#container {
+			display:flex;
+			flex-flow: row nowrap;
+			align-content: stretch;
 		}
 		</style>
 	</head>
@@ -31,8 +43,13 @@
 		<h1>
 			Example feed
 		</h1>
-		<div id="termbox">
-		[#vals]
+		<div id="container">
+			<div id="termbox">
+			[#vals]
+			</div>
+			<div id="svg-wrapper">
+				[#graph]
+			</div>
 		</div>
 	</body>
 </html>
