@@ -70,40 +70,6 @@ pub fn format_web_page(allocator: std.mem.Allocator, lines: []const PACKET_TYPE,
     try buffer.replaceRange(allocator, @as(usize, @intCast(@as(isize, @intCast(graph_token_start)) + word_offset)), graph_token.len, graph_fragment);
 }
 
-/// Specialized version of the Join function from the standard library
-fn joinPrefixSuffix(comptime T: type, allocator: std.mem.Allocator, separator: []const T, slices: []const []const T, prefix: []const T, suffix: []const T) std.mem.Allocator.Error![]T {
-    // could be done at comptime?
-    const true_sep = try allocator.alloc(T, prefix.len + separator.len + suffix.len);
-    defer allocator.free(true_sep);
-
-    @memcpy(true_sep[0..suffix.len], suffix);
-    @memcpy(true_sep[suffix.len .. suffix.len + separator.len], separator);
-    @memcpy(true_sep[suffix.len + separator.len ..], prefix);
-
-    const total_len = blk: {
-        var sum: usize = (true_sep.len * (slices.len - 1)) + (prefix.len + suffix.len);
-        for (slices) |slice| sum += slice.len;
-        break :blk sum;
-    };
-
-    const buf = try allocator.alloc(T, total_len);
-    errdefer allocator.free(buf);
-
-    @memcpy(buf[0..prefix.len], prefix);
-    var buf_index: usize = prefix.len + slices[0].len;
-    @memcpy(buf[prefix.len..buf_index], slices[0]);
-
-    for (slices[1..]) |slice| {
-        @memcpy(buf[buf_index .. buf_index + true_sep.len], true_sep);
-        buf_index += true_sep.len;
-        @memcpy(buf[buf_index .. buf_index + slice.len], slice);
-        buf_index += slice.len;
-    }
-    @memcpy(buf[buf_index..], suffix);
-
-    return buf;
-}
-
 pub inline fn remap(comptime T: type, prev_range: [2]T, neo_range: [2]T, value: T) T {
     return ((neo_range[1] - neo_range[0]) * ((value - prev_range[0]) / (prev_range[1] - prev_range[0]))) + neo_range[0];
 }
@@ -137,16 +103,6 @@ fn format_webgraph(allocator: std.mem.Allocator, lines: []const PACKET_TYPE) std
 
     try temp_lines.print(allocator, "</svg>", .{});
     return temp_lines.toOwnedSlice(allocator);
-}
-
-test "joinPrefixSuffix" {
-    const testing = std.testing;
-    const words = .{ "foo", "bar" };
-
-    const total = try joinPrefixSuffix(u8, testing.allocator, ",", &words, "[", "]");
-    defer testing.allocator.free(total);
-
-    try testing.expectEqualStrings("[foo],[bar]", total);
 }
 
 test "remap_function" {
