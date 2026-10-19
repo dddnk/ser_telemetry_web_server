@@ -109,7 +109,7 @@ pub inline fn remap(comptime T: type, prev_range: [2]T, neo_range: [2]T, value: 
 }
 
 /// Creates an svg graph from info.
-fn format_webgraph(allocator: std.mem.Allocator, lines: []const PACKET_TYPE) ![]u8 {
+fn format_webgraph(allocator: std.mem.Allocator, lines: []const PACKET_TYPE) std.mem.Allocator.Error![]u8 {
     const width: u32 = 500;
     const height: u32 = 210;
     const graph_padding: f32 = 7;

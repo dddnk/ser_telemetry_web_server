@@ -9,21 +9,19 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-
-    const clap = b.dependency("clap", .{ .target = target, .optimize = optimize });
+    const clap = b.dependency("clap", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const httpz = b.dependency("httpz", .{
         .target = target,
         .optimize = optimize,
     });
 
     // Modules
-    const mod = b.addModule("ser_broadcast", .{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .strip = optimize != .Debug,
-    });
-
-    mod.addImport("httpz", httpz.module("httpz"));
+    const mod = b.addModule("ser_broadcast", .{ .root_source_file = b.path("src/root.zig"), .target = target, .strip = optimize != .Debug, .imports = &.{
+        .{ .name = "httpz", .module = httpz.module("httpz") },
+    } });
 
     const exe = b.addExecutable(.{
         .name = b.fmt("[{s}-{s}]ser_broadcast", .{ @tagName(target.result.cpu.arch), @tagName(target.result.os.tag) }),
@@ -34,13 +32,11 @@ pub fn build(b: *std.Build) void {
             .strip = optimize != .Debug,
             .imports = &.{
                 .{ .name = "ser_broadcast", .module = mod },
+                .{ .name = "serial", .module = serialz.module("serial") },
+                .{ .name = "clap", .module = clap.module("clap") },
             },
         }),
     });
-
-    exe.root_module.addImport("serial", serialz.module("serial"));
-    exe.root_module.addImport("clap", clap.module("clap"));
-
     b.installArtifact(exe);
 
     const run_step = b.step("run", "Run the app");

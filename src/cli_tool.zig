@@ -38,7 +38,7 @@ pub fn list_devices(io: std.Io) !void {
 pub fn setup_serial(io: std.Io, device: []const u8, baudrate: ?u32) !std.Io.File {
     const serial = std.Io.Dir.cwd().openFile(io, device, .{ .mode = .read_write }) catch |err| {
         if (err == error.FileNotFound) {
-            std.debug.print("\u{001b}[31mError: The Device [{s}] was not found.\u{001b}[0m\n", .{device});
+            std.log.err("Error: The Device [{s}] was not found.", .{device});
         }
         return err;
     };
