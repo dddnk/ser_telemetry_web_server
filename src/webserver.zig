@@ -107,15 +107,13 @@ fn format_webgraph(allocator: std.mem.Allocator, lines: []const PACKET_TYPE) std
 
 test "remap_function" {
     // Iterate through all float types
-    inline for ([_]type{ f16, f32, f64, f128 }) |float| {
+    inline for ([_]type{ f16, f32, f64, f80, f128 }) |float| {
         const old_ranges = [_][2]float{ .{ -2, 2 }, .{ 0, -1 } };
         const new_ranges = [_][2]float{ .{ -1, 1 }, .{ -1, 0 } };
         const initial_values = [_]float{ 0, -0.2 };
         const expected_values = [_]float{ 0, -0.8 };
 
-        const iter_len: usize = @max(@max(old_ranges.len, new_ranges.len), @max(initial_values.len, expected_values.len));
-
-        for (0..iter_len) |idx| {
+        for (0..old_ranges.len) |idx| {
             const remap_res = remap(float, old_ranges[idx], new_ranges[idx], initial_values[idx]);
             try std.testing.expect(remap_res == expected_values[idx]);
         }
