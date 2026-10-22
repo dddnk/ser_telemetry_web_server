@@ -4,6 +4,7 @@ const Io = std.Io;
 const zig_serial = @import("serial");
 const web = @import("webserver.zig");
 
+/// Listens to a stream of data.
 fn listen_serial(alloc: std.mem.Allocator, reader: *std.Io.Reader, line_buffer: *std.ArrayList(web.PACKET_TYPE), page_buffer: *std.ArrayList(u8)) !void {
     while (reader.takeDelimiterExclusive('\n')) |line| {
         reader.toss(1);
@@ -21,7 +22,7 @@ fn listen_serial(alloc: std.mem.Allocator, reader: *std.Io.Reader, line_buffer: 
     }
 }
 
-/// Start web server
+/// Start web server, listening to serial.
 pub fn server_start(io: std.Io, allocator: std.mem.Allocator, device: std.Io.File, port: ?u16) !void {
     var line_buffer: std.ArrayList(web.PACKET_TYPE) = try .initCapacity(allocator, 100);
     defer line_buffer.deinit(allocator);
