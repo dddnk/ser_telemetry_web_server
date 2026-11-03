@@ -7,7 +7,6 @@ pub const template = @embedFile("./basic.html");
 pub const replace_token = "[#vals]";
 const replace_start = std.mem.find(u8, template, replace_token) orelse @compileError("could not find token.");
 
-const DEFAULT_PORT: u16 = 5882;
 const MAX_WORKERS: u16 = 2;
 
 pub const PACKET_TYPE: type = packet.DataPacket;
@@ -15,19 +14,17 @@ pub const PACKET_TYPE: type = packet.DataPacket;
 const State = struct { log_buffer: *std.ArrayList(u8) };
 
 /// Start http web server
-pub fn start(io: std.Io, allocator: std.mem.Allocator, port: ?u16, line_buffer: *std.ArrayList(u8)) !void {
-    const final_port = port orelse DEFAULT_PORT;
-
+pub fn start(io: std.Io, allocator: std.mem.Allocator, port: u16, line_buffer: *std.ArrayList(u8)) !void {
     var app_state = State{ .log_buffer = line_buffer };
 
-    var server = try httpz.Server(*State).init(io, allocator, .{ .address = .all(final_port), .workers = .{ .count = MAX_WORKERS } }, &app_state);
+    var server = try httpz.Server(*State).init(io, allocator, .{ .address = .all(port), .workers = .{ .count = MAX_WORKERS } }, &app_state);
     defer server.deinit();
     defer server.stop();
 
     var router = try server.router(.{});
     router.get("/", home_page, .{});
 
-    std.debug.print("Homepage at: \u{001b}[34mhttp://localhost:{d}\u{001b}[0m\n", .{final_port});
+    std.debug.print("Homepage at: \u{001b}[34mhttp://localhost:{d}\u{001b}[0m\n", .{port});
 
     try server.listen();
 }

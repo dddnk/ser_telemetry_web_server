@@ -23,7 +23,7 @@ fn listen_serial(alloc: std.mem.Allocator, reader: *std.Io.Reader, line_buffer: 
 }
 
 /// Start web server, listening to serial.
-pub fn server_start(io: std.Io, allocator: std.mem.Allocator, device: std.Io.File, port: ?u16) !void {
+pub fn server_start(io: std.Io, allocator: std.mem.Allocator, device: std.Io.File, port: u16) !void {
     var line_buffer: std.ArrayList(web.PACKET_TYPE) = try .initCapacity(allocator, 100);
     defer line_buffer.deinit(allocator);
     var page_buffer: std.ArrayList(u8) = try .initCapacity(allocator, web.template.len + 100);
