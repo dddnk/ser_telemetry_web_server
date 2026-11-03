@@ -5,20 +5,7 @@ const ser_broadcast = @import("ser_broadcast");
 const clap = @import("clap");
 const tools = @import("cli_tool.zig");
 
-const SubCommands = enum { list, listen, server };
 const DEFAULT_PORT: u16 = 4382;
-
-const main_parsers = .{
-    .command = clap.parsers.enumeration(SubCommands),
-};
-
-// The parameters for `main`. Parameters for the subcommands are specified further down.
-const main_params = clap.parseParamsComptime(
-    \\-h, --help  Display this help and exit.
-    \\<command>
-    \\
-);
-const MainArgs = clap.ResultEx(clap.Help, &main_params, main_parsers);
 
 pub fn main(init: std.process.Init) !void {
     const default_allocator: std.mem.Allocator = init.gpa;
@@ -27,6 +14,17 @@ pub fn main(init: std.process.Init) !void {
 
     _ = iter.next();
 
+    const SubCommands = enum { list, listen, server };
+    const main_parsers = .{
+        .command = clap.parsers.enumeration(SubCommands),
+    };
+
+    // The parameters for `main`. Parameters for the subcommands are specified further down.
+    const main_params = comptime clap.parseParamsComptime(
+        \\-h, --help  Display this help and exit.
+        \\<command>   Run (list (devices) , debug, server)
+        \\
+    );
     var diag = clap.Diagnostic{};
     var res = clap.parseEx(clap.Help, &main_params, main_parsers, &iter, .{
         .diagnostic = &diag,
@@ -38,11 +36,9 @@ pub fn main(init: std.process.Init) !void {
     };
     defer res.deinit();
 
-    if (res.args.help != 0) {
-        return clap.helpToFile(init.io, .stderr(), clap.Help, &main_params, .{});
-    }
+    if (res.args.help != 0 or res.positionals[0] == null) return clap.helpToFile(init.io, .stderr(), clap.Help, &main_params, .{});
 
-    const command = res.positionals[0] orelse return error.MissingCommand;
+    const command = res.positionals[0] orelse unreachable;
     switch (command) {
         .list => try tools.list_devices(init.io),
         .listen => try debug_listen(init.io, default_allocator, &iter),
@@ -85,7 +81,6 @@ pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
         .target_path = clap.parsers.string,
     };
     const params = comptime clap.parseParamsComptime(
-        \\Displays incoming parsed info via web server.
         \\-h, --help             Display this help and exit.
         \\-b, --baudrate <u32>   The baudrate to listen at. Defaults to 9600.
         \\-p, --port <u16>       The port to start the webserver on. Defaults to 4382.
@@ -103,20 +98,26 @@ pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
     defer results.deinit();
 
     if (results.args.help != 0 or results.positionals[0] == null) return clap.helpToFile(io, .stderr(), clap.Help, &params, .{});
-    const source_command = results.positionals[0] orelse return error.MissingCommand;
+    const source_command = results.positionals[0] orelse unreachable;
     const source_path = results.positionals[1] orelse return error.MssingCommand;
     switch (source_command) {
         .ttyusb => {
             var serial = try tools.setup_serial(io, source_path, results.args.baudrate);
             defer serial.close(io);
 
-            try ser_broadcast.server_start(io, gpa, serial, results.args.port orelse DEFAULT_PORT);
+            var r_buf: [128]u8 = undefined;
+            var reader = serial.reader(io, &r_buf);
+
+            try ser_broadcast.server_start(io, gpa, &reader.interface, results.args.port orelse DEFAULT_PORT);
         },
         .file => {
             var handle = try std.Io.Dir.cwd().openFile(io, source_path, .{ .mode = .read_only });
             defer handle.close(io);
 
-            try ser_broadcast.server_start(io, gpa, handle, results.args.port orelse DEFAULT_PORT);
+            var r_buf: [128]u8 = undefined;
+            var reader = handle.reader(io, &r_buf);
+
+            try ser_broadcast.server_start(io, gpa, &reader.interface, results.args.port orelse DEFAULT_PORT);
         },
     }
 }
