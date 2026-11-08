@@ -98,35 +98,37 @@ pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
     defer results.deinit();
 
     if (results.args.help != 0 or results.positionals[0] == null) return clap.helpToFile(io, .stderr(), clap.Help, &params, .{});
+    var read_buffer: [128]u8 = undefined;
+    // The port set by arguments, or the default one.
+    const decided_port = results.args.port orelse DEFAULT_PORT;
+
     const source_command = results.positionals[0] orelse unreachable;
-    const source_path = results.positionals[1] orelse return error.MssingCommand;
     switch (source_command) {
         .ttyusb => {
+            const source_path = results.positionals[1] orelse return error.MissingPath;
             var serial = try tools.setup_serial(io, source_path, results.args.baudrate);
             defer serial.close(io);
 
-            var r_buf: [128]u8 = undefined;
-            var reader = serial.reader(io, &r_buf);
+            var reader = serial.reader(io, &read_buffer);
 
-            try ser_broadcast.server_start(io, gpa, &reader.interface, results.args.port orelse DEFAULT_PORT);
+            try ser_broadcast.server_start(io, gpa, &reader.interface, decided_port);
         },
         .file => {
+            const source_path = results.positionals[1] orelse return error.MissingPath;
             var handle = try std.Io.Dir.cwd().openFile(io, source_path, .{ .mode = .read_only });
             defer handle.close(io);
 
-            var r_buf: [128]u8 = undefined;
-            var reader = handle.reader(io, &r_buf);
+            var reader = handle.reader(io, &read_buffer);
 
-            try ser_broadcast.server_start(io, gpa, &reader.interface, results.args.port orelse DEFAULT_PORT);
+            try ser_broadcast.server_start(io, gpa, &reader.interface, decided_port);
         },
         .stdin => {
             var handle = std.Io.File.stdin();
             defer handle.close(io);
 
-            var r_buf: [128]u8 = undefined;
-            var reader = handle.reader(io, &r_buf);
+            var reader = handle.reader(io, &read_buffer);
 
-            try ser_broadcast.server_start(io, gpa, &reader.interface, results.args.port orelse DEFAULT_PORT);
+            try ser_broadcast.server_start(io, gpa, &reader.interface, decided_port);
         },
     }
 }
