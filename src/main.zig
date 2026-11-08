@@ -73,7 +73,7 @@ pub fn debug_listen(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
 
 /// Creates a server to listen from.
 pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
-    const server_subcommands = enum { ttyusb, file };
+    const server_subcommands = enum { ttyusb, file, stdin };
     const server_parsers = .{
         .method = clap.parsers.enumeration(server_subcommands),
         .u32 = clap.parsers.int(u32, 10),
@@ -112,6 +112,15 @@ pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
         },
         .file => {
             var handle = try std.Io.Dir.cwd().openFile(io, source_path, .{ .mode = .read_only });
+            defer handle.close(io);
+
+            var r_buf: [128]u8 = undefined;
+            var reader = handle.reader(io, &r_buf);
+
+            try ser_broadcast.server_start(io, gpa, &reader.interface, results.args.port orelse DEFAULT_PORT);
+        },
+        .stdin => {
+            var handle = std.Io.File.stdin();
             defer handle.close(io);
 
             var r_buf: [128]u8 = undefined;
