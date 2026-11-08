@@ -35,7 +35,7 @@ pub fn list_devices(io: std.Io) !void {
     }
 }
 /// Opens device and configure it as a serial port.
-pub fn setup_serial(io: std.Io, device: []const u8, baudrate: ?u32) !std.Io.File {
+pub fn setup_serial(io: std.Io, device: []const u8, baudrate: u32) !std.Io.File {
     const serial = std.Io.Dir.cwd().openFile(io, device, .{ .mode = .read_write }) catch |err| {
         if (err == error.FileNotFound) {
             std.log.err("Error: The Device [{s}] was not found.", .{device});
@@ -44,13 +44,13 @@ pub fn setup_serial(io: std.Io, device: []const u8, baudrate: ?u32) !std.Io.File
     };
 
     try zig_serial.configureSerialPort(serial, zig_serial.SerialConfig{
-        .baud_rate = baudrate orelse 9600,
+        .baud_rate = baudrate,
         .word_size = .eight,
         .parity = .none,
         .stop_bits = .one,
         .handshake = .none,
     });
     errdefer serial.close(io);
-    std.debug.print("Listening at [\u{001b}[33m{s}\u{001b}[0m], baudrate \u{001b}[32m{}\u{001b}[0m\n", .{ device, baudrate orelse 9600 });
+    std.debug.print("Listening at [\u{001b}[33m{s}\u{001b}[0m], baudrate \u{001b}[32m{}\u{001b}[0m\n", .{ device, baudrate });
     return serial;
 }

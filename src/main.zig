@@ -9,7 +9,7 @@ const tools = @import("cli_tool.zig");
 const DEFAULT_PORT: u16 = 4382;
 
 /// Does zig serial support this operating system?
-const zig_serial_supported: bool = std.mem.findScalar(std.Target.Os.Tag, &[_]std.Target.Os.Tag{ .linux, .windows, .macos }, builtin.os.tag) != null;
+const zig_serial_supported: bool = std.mem.findScalar(std.Target.Os.Tag, &[_]std.Target.Os.Tag{ .linux, .windows, .macos, .freebsd }, builtin.os.tag) != null;
 
 pub fn main(init: std.process.Init) !void {
     const default_allocator: std.mem.Allocator = init.gpa;
@@ -69,10 +69,14 @@ pub fn debug_listen(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
     };
     defer res.deinit();
 
-    var serial = try tools.setup_serial(io, res.positionals[0][0], res.args.baudrate);
-    defer serial.close(io);
+    if (zig_serial_supported) {
+        var serial = try tools.setup_serial(io, res.positionals[0][0], res.args.baudrate orelse 9600);
+        defer serial.close(io);
 
-    try tools.debug_listen_serial(io, serial);
+        try tools.debug_listen_serial(io, serial);
+    } else {
+        std.log.warn(std.fmt.comptimePrint("TTYUSB source not available on {s}.\n", .{@tagName(builtin.os.tag)}), .{});
+    }
 }
 
 /// Creates a server to listen from.
@@ -112,7 +116,7 @@ pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
             // Only works on OS supported by zig-serial.
             if (zig_serial_supported) {
                 const source_path = results.positionals[1] orelse return error.MissingPath;
-                var serial = try tools.setup_serial(io, source_path, results.args.baudrate);
+                var serial = try tools.setup_serial(io, source_path, results.args.baudrate orelse 9600);
                 defer serial.close(io);
 
                 var reader = serial.reader(io, &read_buffer);
