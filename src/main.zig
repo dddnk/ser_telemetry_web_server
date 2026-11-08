@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const Io = std.Io;
 
 const ser_broadcast = @import("ser_broadcast");
@@ -6,6 +7,9 @@ const clap = @import("clap");
 const tools = @import("cli_tool.zig");
 
 const DEFAULT_PORT: u16 = 4382;
+
+/// Does zig serial support this operating system?
+const zig_serial_supported: bool = std.mem.findScalar(std.Target.Os.Tag, &[_]std.Target.Os.Tag{ .linux, .windows, .macos }, builtin.os.tag) != null;
 
 pub fn main(init: std.process.Init) !void {
     const default_allocator: std.mem.Allocator = init.gpa;
@@ -105,13 +109,18 @@ pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
     const source_command = results.positionals[0] orelse unreachable;
     switch (source_command) {
         .ttyusb => {
-            const source_path = results.positionals[1] orelse return error.MissingPath;
-            var serial = try tools.setup_serial(io, source_path, results.args.baudrate);
-            defer serial.close(io);
+            // Only works on OS supported by zig-serial.
+            if (zig_serial_supported) {
+                const source_path = results.positionals[1] orelse return error.MissingPath;
+                var serial = try tools.setup_serial(io, source_path, results.args.baudrate);
+                defer serial.close(io);
 
-            var reader = serial.reader(io, &read_buffer);
+                var reader = serial.reader(io, &read_buffer);
 
-            try ser_broadcast.server_start(io, gpa, &reader.interface, decided_port);
+                try ser_broadcast.server_start(io, gpa, &reader.interface, decided_port);
+            } else {
+                std.log.warn(std.fmt.comptimePrint("TTYUSB source not available on {s}.\n", .{@tagName(builtin.os.tag)}), .{});
+            }
         },
         .file => {
             const source_path = results.positionals[1] orelse return error.MissingPath;

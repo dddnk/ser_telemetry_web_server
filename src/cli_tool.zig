@@ -31,7 +31,7 @@ pub fn list_devices(io: std.Io) !void {
             std.debug.print("path={s},\tname={s},\tdriver={s}\n", .{ port.file_name, port.display_name, port.driver orelse "<no driver recognized>" });
         }
     } else {
-        std.debug.print(std.fmt.comptimePrint("List feature not available on {s}.\n", .{@tagName(builtin.os.tag)}), .{});
+        std.log.warn(std.fmt.comptimePrint("List feature not available on {s}.\n", .{@tagName(builtin.os.tag)}), .{});
     }
 }
 /// Opens device and configure it as a serial port.

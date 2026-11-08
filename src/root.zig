@@ -1,7 +1,6 @@
 //! By convention, root.zig is the root source file when making a package.
 const std = @import("std");
 const Io = std.Io;
-const zig_serial = @import("serial");
 const web = @import("webserver.zig");
 
 /// Listens to a stream of data.
@@ -24,8 +23,10 @@ fn listen_serial(alloc: std.mem.Allocator, reader: *std.Io.Reader, line_buffer: 
 
 /// Start web server, listening to serial.
 pub fn server_start(io: std.Io, allocator: std.mem.Allocator, reader: *std.Io.Reader, port: u16) !void {
+    // Holds incoming packets.
     var line_buffer: std.ArrayList(web.PACKET_TYPE) = try .initCapacity(allocator, 100);
     defer line_buffer.deinit(allocator);
+    // For our generated page.
     var page_buffer: std.ArrayList(u8) = try .initCapacity(allocator, web.template.len + 100);
     defer page_buffer.deinit(allocator);
 
