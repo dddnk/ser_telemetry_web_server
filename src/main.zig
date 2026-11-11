@@ -113,7 +113,6 @@ pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
     const source_command = results.positionals[0] orelse unreachable;
     switch (source_command) {
         .ttyusb => {
-            // Only works on OS supported by zig-serial.
             if (zig_serial_supported) {
                 const source_path = results.positionals[1] orelse return error.MissingPath;
                 var serial = try tools.setup_serial(io, source_path, results.args.baudrate orelse 9600);

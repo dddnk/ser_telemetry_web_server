@@ -42,15 +42,17 @@ pub fn format_web_page(allocator: std.mem.Allocator, lines: []const PACKET_TYPE,
     // This is used to keep track of length changes when formatting.
     var word_offset: isize = 0;
 
+    const line_cap: usize = 19;
+
     // Clear the buffer first.
     buffer.clearRetainingCapacity();
     try buffer.appendSlice(allocator, template);
     // Temperature logs
     {
-        const max_lines: usize = @min(lines.len, 19);
+        const max_lines: usize = @min(lines.len, line_cap);
         const offset: usize = lines.len - (max_lines);
 
-        var printed_lines: std.ArrayList(u8) = try .initCapacity(allocator, lines.len * 19);
+        var printed_lines: std.ArrayList(u8) = try .initCapacity(allocator, lines.len * line_cap);
         defer printed_lines.deinit(allocator);
 
         for (0..max_lines) |line_id| try printed_lines.print(allocator, "{d:7.2} *C{s}", .{ lines[offset + line_id].temperature, if (line_id != max_lines - 1) separator else "" });
