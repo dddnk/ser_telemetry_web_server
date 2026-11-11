@@ -10,12 +10,12 @@ fn range_finder(comptime T: type, slice: []const T, tokens: [2]T, offset: usize)
 /// Datapacket type. Lines are read and parsed into this datatype.
 pub const DataPacket = struct {
     temperature: f32,
-    seconds: ?f32,
+    seconds: ?u32,
 
     const Self = @This();
 
-    // Constructor.
-    pub fn from_slice_old(input_slice: []const u8) std.fmt.ParseFloatError!Self {
+    /// Old constructor for [TEMP=000.00 C] format.
+    pub fn from_slice_legacy(input_slice: []const u8) std.fmt.ParseFloatError!Self {
         const example_schema = "[TEMP=000.00 C]";
         const field_1 = comptime range_finder(u8, example_schema, .{ '0', ' ' }, 0) orelse @compileError("Could not find indexes for field 1");
 
@@ -23,7 +23,8 @@ pub const DataPacket = struct {
         return Self{ .temperature = temp, .seconds = null };
     }
 
-    pub fn from_slice(input_slice: []const u8) !Self {
+    pub fn from_slice(input_slice: []const u8) (std.fmt.ParseIntError || error{InputTooSmall})!Self {
+        if (input_slice.len < 3) return error.InputTooSmall;
         const raw = try std.fmt.parseInt(u32, input_slice[2..], 16);
         const temp = @as(@FieldType(Self, "temperature"), @floatFromInt(raw)) * 0.000_01;
         return Self{ .temperature = temp, .seconds = null };
@@ -41,11 +42,12 @@ test "Hexpacket Construct" {
 }
 
 test "DataPacket Construct Old" {
+    //
     const input_slices = [_]*const [15:0]u8{ "[TEMP=017.17 C]", "[TEMP=167.00 C]", "[TEMP=018.12 C]", "[TEMP=-01.00 C]" };
     const matching = [_]f32{ 17.17, 167.0, 18.12, -1.0 };
 
     for (input_slices, 0..) |slice, idx| {
-        const packet: DataPacket = try .from_slice_old(slice);
+        const packet: DataPacket = try .from_slice_legacy(slice);
         try std.testing.expectApproxEqAbs(packet.temperature, matching[idx], 0.11);
     }
 }
