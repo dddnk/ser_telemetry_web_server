@@ -8,7 +8,7 @@ fn listen_serial(alloc: std.mem.Allocator, reader: *std.Io.Reader, line_buffer: 
     while (reader.takeDelimiterExclusive('\n')) |line| {
         reader.toss(1);
         // Skip if in invalid form
-        if (web.packet.DataPacket.from_slice_n(line)) |pkt| {
+        if (web.packet.DataPacket.from_slice_legacy(line)) |pkt| {
             try line_buffer.append(alloc, pkt);
         } else |err| {
             std.log.warn("Skipping packet \"{s}\" due to {s}.", .{ line, @errorName(err) });

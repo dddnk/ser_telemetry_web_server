@@ -14,17 +14,20 @@ pub const DataPacket = struct {
 
     const Self = @This();
 
+    const PacketParseError = error{InputTooSmall};
+
     /// Old constructor for [TEMP=000.00 C] format.
-    pub fn from_slice_legacy(input_slice: []const u8) std.fmt.ParseFloatError!Self {
+    pub fn from_slice_legacy(input_slice: []const u8) (std.fmt.ParseFloatError || PacketParseError)!Self {
         const example_schema = "[TEMP=000.00 C]";
         const field_1 = comptime range_finder(u8, example_schema, .{ '0', ' ' }, 0) orelse @compileError("Could not find indexes for field 1");
 
+        if (input_slice.len < field_1[1]) return PacketParseError.InputTooSmall;
         const temp = try std.fmt.parseFloat(@FieldType(Self, "temperature"), input_slice[field_1[0]..field_1[1]]);
         return Self{ .temperature = temp, .seconds = null };
     }
 
-    pub fn from_slice(input_slice: []const u8) (std.fmt.ParseIntError || error{InputTooSmall})!Self {
-        if (input_slice.len < 3) return error.InputTooSmall;
+    pub fn from_slice(input_slice: []const u8) (std.fmt.ParseIntError || PacketParseError)!Self {
+        if (input_slice.len < 3) return PacketParseError.InputTooSmall;
         const raw = try std.fmt.parseInt(u32, input_slice[2..], 16);
         const temp = @as(@FieldType(Self, "temperature"), @floatFromInt(raw)) * 0.000_01;
         return Self{ .temperature = temp, .seconds = null };

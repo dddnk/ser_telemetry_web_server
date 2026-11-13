@@ -13,7 +13,9 @@ const zig_serial_supported: bool = std.mem.findScalar(std.Target.Os.Tag, &[_]std
 
 pub fn main(init: std.process.Init) !void {
     const default_allocator: std.mem.Allocator = init.gpa;
-    var iter = try init.minimal.args.iterateAllocator(default_allocator);
+    var mem_buffer: [256_000]u8 = undefined;
+    var falloc: std.heap.FixedBufferAllocator = .init(&mem_buffer);
+    var iter = try init.minimal.args.iterateAllocator(falloc.allocator());
     defer iter.deinit();
 
     _ = iter.next();
