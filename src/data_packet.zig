@@ -44,8 +44,7 @@ test "Hexpacket Construct" {
     }
 }
 
-test "DataPacket Construct Old" {
-    //
+test "DataPacket Construct Legacy Good" {
     const input_slices = [_]*const [15:0]u8{ "[TEMP=017.17 C]", "[TEMP=167.00 C]", "[TEMP=018.12 C]", "[TEMP=-01.00 C]" };
     const matching = [_]f32{ 17.17, 167.0, 18.12, -1.0 };
 
@@ -53,4 +52,15 @@ test "DataPacket Construct Old" {
         const packet: DataPacket = try .from_slice_legacy(slice);
         try std.testing.expectApproxEqAbs(packet.temperature, matching[idx], 0.11);
     }
+}
+test "DataPacket Construct Legacy TooSmall" {
+    const InputTooSmall = DataPacket.PacketParseError.InputTooSmall;
+    try std.testing.expectError(InputTooSmall, DataPacket.from_slice_legacy("[TEMP=0]"));
+    try std.testing.expectError(InputTooSmall, DataPacket.from_slice_legacy(""));
+    try std.testing.expectError(InputTooSmall, DataPacket.from_slice_legacy("[TEMP=000.0"));
+}
+test "DataPacket Construct Legacy InvalidCharacter" {
+    const InvalidChar = std.fmt.ParseIntError.InvalidCharacter;
+    try std.testing.expectError(InvalidChar, DataPacket.from_slice_legacy("[TEMP=AAA.AA]"));
+    try std.testing.expectError(InvalidChar, DataPacket.from_slice_legacy("[TEMP=000.0]"));
 }

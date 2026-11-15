@@ -13,14 +13,23 @@ const zig_serial_supported: bool = std.mem.findScalar(std.Target.Os.Tag, &[_]std
 
 pub fn main(init: std.process.Init) !void {
     const default_allocator: std.mem.Allocator = init.gpa;
-    var mem_buffer: [256_000]u8 = undefined;
-    var falloc: std.heap.FixedBufferAllocator = .init(&mem_buffer);
-    var iter = try init.minimal.args.iterateAllocator(falloc.allocator());
+    // var mem_buffer: [256_000]u8 = undefined;
+    // var falloc: std.heap.FixedBufferAllocator = .init(&mem_buffer);
+    // const allc = falloc.alloc();
+    var iter = try init.minimal.args.iterateAllocator(default_allocator);
     defer iter.deinit();
 
     _ = iter.next();
 
-    const SubCommands = enum { list, listen, server };
+    const SubCommands = enum {
+        /// List all available devices.
+        /// Does not support MacOS.
+        list,
+        /// Listen to serial device output directly for debugging reasons.
+        listen,
+        /// Starts a web server and reads data from a given source.
+        server,
+    };
     const main_parsers = .{
         .command = clap.parsers.enumeration(SubCommands),
     };
@@ -83,7 +92,15 @@ pub fn debug_listen(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
 
 /// Creates a server to listen from.
 pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
-    const server_subcommands = enum { ttyusb, file, stdin };
+    const server_subcommands = enum {
+        /// Read serial device via COM port.
+        ttyusb,
+        /// Read data from file. Does not have timing information,but useful for debugging.
+        file,
+        /// Standard input. Allows for reading of data from another program.
+        stdin,
+    };
+
     const server_parsers = .{
         .method = clap.parsers.enumeration(server_subcommands),
         .u32 = clap.parsers.int(u32, 10),

@@ -20,7 +20,7 @@ pub fn debug_listen_serial(io: std.Io, serial: std.Io.File) !void {
         }
     }
 }
-/// Returns a list of available devices
+/// Returns a list of available devices. Does not support MacOS.
 pub fn list_devices(io: std.Io) !void {
     // MacOS does not support this.
     if (builtin.os.tag == .linux or builtin.os.tag == .windows) {
