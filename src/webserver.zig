@@ -11,13 +11,11 @@ const MAX_WORKERS: u16 = 2;
 
 pub const PACKET_TYPE: type = packet.DataPacket;
 
-const State = struct { log_buffer: *std.ArrayList(u8) };
+pub const WebserverContext = struct { log_buffer: *std.ArrayList(u8), page_length: usize };
 
 /// Start http web server
-pub fn start(io: std.Io, allocator: std.mem.Allocator, port: u16, line_buffer: *std.ArrayList(u8)) !void {
-    var app_state = State{ .log_buffer = line_buffer };
-
-    var server = try httpz.Server(*State).init(io, allocator, .{ .address = .all(port), .workers = .{ .count = MAX_WORKERS } }, &app_state);
+pub fn start(io: std.Io, allocator: std.mem.Allocator, port: u16, app_state: WebserverContext) !void {
+    var server = try httpz.Server(*WebserverContext).init(io, allocator, .{ .address = .all(port), .workers = .{ .count = MAX_WORKERS } }, &app_state);
     defer server.deinit();
     defer server.stop();
 
@@ -30,7 +28,7 @@ pub fn start(io: std.Io, allocator: std.mem.Allocator, port: u16, line_buffer: *
 }
 
 /// HTML Home page return function
-fn home_page(app_state: *State, _: *httpz.Request, res: *httpz.Response) !void {
+fn home_page(app_state: *WebserverContext, _: *httpz.Request, res: *httpz.Response) !void {
     res.content_type = .HTML;
     res.body = app_state.log_buffer.items;
     res.header("Access-Control-Allow-Origin", "*");
@@ -69,6 +67,74 @@ pub fn format_web_page(allocator: std.mem.Allocator, lines: []const PACKET_TYPE,
     try buffer.replaceRange(allocator, @as(usize, @intCast(@as(isize, @intCast(graph_token_start)) + word_offset)), graph_token.len, graph_fragment);
 }
 
+pub fn format_web_page_writer(writer: *std.Io.Writer, lines: []const PACKET_TYPE) !usize {
+    const prior_length = writer.end;
+    const separator = "<br>";
+    // This is used to keep track of length changes when formatting.
+    var word_offset: isize = 0;
+
+    const line_cap: usize = 19;
+
+    _ = try writer.write(template[0..replace_start]);
+
+    // Temperature logs
+    {
+        const max_lines: usize = @min(lines.len, line_cap);
+        const offset: usize = lines.len - (max_lines);
+
+        for (0..max_lines) |line_id| {
+            try writer.print("{d:7.2} *C{s}", .{ lines[offset + line_id].temperature, if (line_id != max_lines - 1) separator else "" });
+        }
+
+        // try buffer.replaceRange(allocator, replace_start, replace_token.len, printed_lines.items);
+    } // Shift offset.
+    word_offset = @as(isize, @intCast(writer.end)) - @as(isize, @intCast(template.len));
+    // Graph
+    const graph_token = "[#graph]";
+    const graph_token_start = comptime std.mem.find(u8, template, graph_token) orelse @compileError("could not find token for graph.");
+
+    // Write upto the graph part
+    _ = try writer.write(template[replace_start + replace_token.len .. graph_token_start - 1]);
+
+    // --------------
+    // WRITE_WEBGRAPH
+    // --------------
+
+    const width: u32 = 500;
+    const height: u32 = 210;
+    const graph_padding: f32 = 7;
+    const text_size: f32 = 7;
+
+    // Get minimum and maximum temperature
+    var min_temp: f32 = std.math.inf(f32);
+    var max_temp: f32 = -std.math.inf(f32);
+    for (lines) |packet_line| {
+        min_temp = @min(min_temp, packet_line.temperature);
+        max_temp = @max(max_temp, packet_line.temperature);
+    }
+
+    try writer.print("<svg viewbox=\"0 0 {} {}\">\n", .{ width, height });
+    try writer.print("<polyline points=\"", .{});
+    for (lines, 0..) |packet_lines, idx| {
+        try writer.print(" {},{} ", .{ remap(f32, [2]f32{ 0, @floatFromInt(lines.len - 1) }, .{ graph_padding, @as(f32, @floatFromInt(width)) - graph_padding }, @floatFromInt(idx)), remap(f32, .{ min_temp, max_temp }, .{ @as(f32, @floatFromInt(height)) - text_size, text_size }, packet_lines.temperature) });
+    }
+    try writer.print("\" style=\"fill:none;stroke:var(--foreground-colour);vector-effect: non-scaling-stroke;stroke-width:1px\" />", .{});
+    // Min and max legend
+    try writer.print("<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{} *C</text>", .{ text_size, text_size, max_temp });
+    try writer.print("<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{} *C</text>", .{ height, text_size, min_temp });
+
+    try writer.print("</svg>", .{});
+
+    // -----------------
+    // WRITE_WEBGRAPH_END
+    // -----------------
+
+    _ = try writer.write(template[graph_token_start + graph_token.len ..]);
+    try writer.flush();
+
+    return writer.end - prior_length;
+}
+
 pub inline fn remap(comptime T: type, prev_range: [2]T, neo_range: [2]T, value: T) T {
     return ((neo_range[1] - neo_range[0]) * ((value - prev_range[0]) / (prev_range[1] - prev_range[0]))) + neo_range[0];
 }
@@ -102,6 +168,24 @@ fn format_webgraph(allocator: std.mem.Allocator, lines: []const PACKET_TYPE) std
 
     try temp_lines.print(allocator, "</svg>", .{});
     return temp_lines.toOwnedSlice(allocator);
+}
+
+test "webgraph procedure" {
+    const alloc = std.testing.allocator;
+
+    var points: std.ArrayList(u8) = try .initCapacity(alloc, 256);
+    defer points.deinit(alloc);
+
+    try points.resize(alloc, 1600);
+
+    var writer: std.Io.Writer = .fixed(points.items);
+
+    const pkt_list = [_]PACKET_TYPE{};
+
+    const other_ltngth = try format_web_page_writer(&writer, &pkt_list);
+
+    // std.debug.print("{s}\nlength:{}", .{ points.items[0..writer.end], writer.end });
+    try std.testing.expectEqual(other_ltngth, writer.end);
 }
 
 test "remap_function" {

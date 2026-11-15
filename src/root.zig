@@ -36,7 +36,8 @@ pub fn server_start(io: std.Io, allocator: std.mem.Allocator, reader: *std.Io.Re
     var ser_pro: std.Thread = try .spawn(.{}, listen_serial, .{ allocator, reader, &line_buffer, &page_buffer });
     defer ser_pro.join();
 
-    try web.start(io, allocator, port, &page_buffer);
+    var wsc: web.WebserverContext = .{ .log_buffer = &page_buffer, .page_length = 0 };
+    try web.start(io, allocator, port, &wsc);
 }
 
 // Test stuff
