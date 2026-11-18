@@ -99,7 +99,7 @@ pub fn format_web_page_writer(writer: *std.Io.Writer, lines: []const PACKET_TYPE
     const graph_token_start = comptime std.mem.find(u8, template, graph_token) orelse @compileError("could not find token for graph.");
 
     // Write upto the graph part
-    _ = try writer.write(template[replace_start + replace_token.len .. graph_token_start - 1]);
+    _ = try writer.write(template[replace_start + replace_token.len .. graph_token_start]);
 
     // --------------
     // WRITE_WEBGRAPH
@@ -189,6 +189,13 @@ test "webgraph procedure && dummy write" {
     try points.resize(alloc, dummy_out + 16);
     var writer: std.Io.Writer = .fixed(points.items);
     const writer_out = try format_web_page_writer(&writer, &pkt_list);
+
+    var buf: std.ArrayList(u8) = try .initCapacity(alloc, 1100);
+    defer buf.deinit(alloc);
+    try format_web_page(alloc, &pkt_list, &buf);
+
+    try std.testing.expectEqualStrings(buf.items, points.items[0..writer_out]);
+
     try std.testing.expectEqual(writer_out, dummy_out);
 }
 
