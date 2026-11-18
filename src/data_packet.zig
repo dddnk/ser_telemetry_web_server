@@ -54,10 +54,12 @@ test "DataPacket Construct Legacy Good" {
     }
 }
 test "DataPacket Construct Legacy TooSmall" {
-    const InputTooSmall = DataPacket.PacketParseError.InputTooSmall;
-    try std.testing.expectError(InputTooSmall, DataPacket.from_slice_legacy("[TEMP=0]"));
-    try std.testing.expectError(InputTooSmall, DataPacket.from_slice_legacy(""));
-    try std.testing.expectError(InputTooSmall, DataPacket.from_slice_legacy("[TEMP=000.0"));
+    const uniontype = (std.fmt.ParseIntError || DataPacket.PacketParseError)!DataPacket;
+    const data = [_]uniontype{ DataPacket.from_slice_legacy("[TEMP=0]"), DataPacket.from_slice_legacy(""), DataPacket.from_slice_legacy("[TEMP=000.0") };
+
+    for (data) |res| {
+        try std.testing.expectError(DataPacket.PacketParseError.InputTooSmall, res);
+    }
 }
 test "DataPacket Construct Legacy InvalidCharacter" {
     const InvalidChar = std.fmt.ParseIntError.InvalidCharacter;

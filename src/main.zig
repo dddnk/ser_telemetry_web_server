@@ -65,6 +65,7 @@ pub fn debug_listen(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
     const params = comptime clap.parseParamsComptime(
         \\-h, --help             Display this help and exit.
         \\-b, --baudrate <u32>   The baudrate to listen at. Defaults to 9600.
+        \\--prefix <str>         
         \\<str>...
         \\
     );
