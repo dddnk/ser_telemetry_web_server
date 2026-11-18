@@ -139,68 +139,6 @@ pub fn format_web_page_writer(writer: *std.Io.Writer, lines: []const PACKET_TYPE
     return writer.end - prior_length;
 }
 
-pub fn format_web_page_measure(lines: []const PACKET_TYPE) !usize {
-    var count: usize = 0;
-    const separator = "<br>";
-    // This is used to keep track of length changes when formatting.
-    var word_offset: isize = 0;
-
-    const line_cap: usize = 19;
-
-    count += replace_start;
-
-    // Temperature logs
-    {
-        const max_lines: usize = @min(lines.len, line_cap);
-        const offset: usize = lines.len - (max_lines);
-
-        for (0..max_lines) |line_id| {
-            count += std.fmt.count("{d:7.2} *C{s}", .{ lines[offset + line_id].temperature, if (line_id != max_lines - 1) separator else "" });
-        }
-    } // Shift offset.
-    word_offset = @as(isize, @intCast(count)) - @as(isize, @intCast(template.len));
-    // Graph
-    const graph_token = "[#graph]";
-    const graph_token_start = comptime std.mem.find(u8, template, graph_token) orelse @compileError("could not find token for graph.");
-
-    // Write upto the graph part
-    count += (graph_token_start - 1) - (replace_start + replace_token.len);
-
-    // --------------
-    // WRITE_WEBGRAPH
-    // --------------
-
-    const sizing = WebgraphConfig{
-        .width = 500,
-        .height = 210,
-        .graph_padding = 7,
-        .text_size = 7,
-    };
-
-    // Get minimum and maximum temperature
-    var min_temp: f32 = std.math.inf(f32);
-    var max_temp: f32 = -std.math.inf(f32);
-    for (lines) |packet_line| {
-        min_temp = @min(min_temp, packet_line.temperature);
-        max_temp = @max(max_temp, packet_line.temperature);
-    }
-    count += std.fmt.count("<svg viewbox=\"0 0 {} {}\">\n<polyline points=\"", .{ sizing.width, sizing.height });
-    for (lines, 0..) |packet_lines, idx| {
-        count += std.fmt.count(" {},{} ", .{ remap(f32, [2]f32{ 0, @floatFromInt(lines.len - 1) }, .{ sizing.graph_padding, @as(f32, @floatFromInt(sizing.width)) - sizing.graph_padding }, @floatFromInt(idx)), remap(f32, .{ min_temp, max_temp }, .{ @as(f32, @floatFromInt(sizing.height)) - sizing.text_size, sizing.text_size }, packet_lines.temperature) });
-    }
-    count += std.fmt.count("\" style=\"fill:none;stroke:var(--foreground-colour);vector-effect: non-scaling-stroke;stroke-width:1px\" />", .{});
-    // Min and max legend
-    count += std.fmt.count("<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{} *C</text>", .{ sizing.text_size, sizing.text_size, max_temp });
-    count += std.fmt.count("<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{} *C</text>", .{ sizing.height, sizing.text_size, min_temp });
-
-    count += std.fmt.count("</svg>", .{});
-    // -----------------
-    // WRITE_WEBGRAPH_END
-    // -----------------
-
-    count += (template.len) - (graph_token_start + graph_token.len);
-    return count;
-}
 pub inline fn remap(comptime T: type, prev_range: [2]T, neo_range: [2]T, value: T) T {
     return ((neo_range[1] - neo_range[0]) * ((value - prev_range[0]) / (prev_range[1] - prev_range[0]))) + neo_range[0];
 }
@@ -236,25 +174,22 @@ fn format_webgraph(allocator: std.mem.Allocator, lines: []const PACKET_TYPE) std
     return temp_lines.toOwnedSlice(allocator);
 }
 
-test "webgraph procedure" {
+test "webgraph procedure && dummy write" {
     const alloc = std.testing.allocator;
 
     var points: std.ArrayList(u8) = try .initCapacity(alloc, 256);
     defer points.deinit(alloc);
+    try points.resize(alloc, 64);
 
-    try points.resize(alloc, 1600);
+    const pkt_list: [100_000]PACKET_TYPE = @splat(PACKET_TYPE{ .seconds = null, .temperature = 0.1 });
+    var dummywriter: std.Io.Writer.Discarding = .init(points.items[0..64]);
+    _ = try format_web_page_writer(&dummywriter.writer, &pkt_list);
+    const dummy_out = dummywriter.count;
 
+    try points.resize(alloc, dummy_out + 16);
     var writer: std.Io.Writer = .fixed(points.items);
-
-    const pkt_list: [10]PACKET_TYPE = @splat(PACKET_TYPE{ .seconds = null, .temperature = 0.1 });
-    // const pkt_list = [_]PACKET_TYPE{PACKET_TYPE{ .seconds = null, .temperature = 1 }};
-    // const pkt_list = [_]PACKET_TYPE{};
-
-    const other_length = try format_web_page_writer(&writer, &pkt_list);
-    _ = writer.consumeAll();
-    const assumed_length = format_web_page_measure(&pkt_list);
-
-    try std.testing.expectEqual(other_length, assumed_length);
+    const writer_out = try format_web_page_writer(&writer, &pkt_list);
+    try std.testing.expectEqual(writer_out, dummy_out);
 }
 
 test "remap_function" {
