@@ -11,7 +11,7 @@ const MAX_WORKERS: u16 = 2;
 
 pub const PACKET_TYPE: type = packet.DataPacket;
 
-pub const WebserverContext = struct { log_buffer: *std.ArrayList(u8), page_length: usize };
+pub const WebserverContext = struct { webpage_buffer: *std.ArrayList(u8), page_length: usize };
 
 /// Start http web server
 pub fn start(io: std.Io, allocator: std.mem.Allocator, port: u16, app_state: *WebserverContext) !void {
@@ -30,7 +30,7 @@ pub fn start(io: std.Io, allocator: std.mem.Allocator, port: u16, app_state: *We
 /// HTML Home page return function
 fn home_page(app_state: *WebserverContext, _: *httpz.Request, res: *httpz.Response) !void {
     res.content_type = .HTML;
-    res.body = app_state.log_buffer.items;
+    res.body = app_state.webpage_buffer.items;
     res.header("Access-Control-Allow-Origin", "*");
 }
 
