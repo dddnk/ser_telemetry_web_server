@@ -74,6 +74,19 @@ const WebgraphConfig = struct {
     text_size: f32,
 };
 
+// pub fn delta_webpage_check(pkt: PACKET_TYPE) usize {
+//     var count: usize = 0;
+//     const sizing = WebgraphConfig{
+//         .width = 500,
+//         .height = 210,
+//         .graph_padding = 7,
+//         .text_size = 7,
+//     };
+//     count += std.fmt.count("{d:7.2} *C{s}", .{ pkt.temperature, "" });
+//     count += std.fmt.count(" {},{} ", @as(f32, @floatFromInt(sizing.width)) - sizing.graph_padding, remap(f32, .{ min_temp, max_temp }, .{ @as(f32, @floatFromInt(sizing.height)) - sizing.text_size, sizing.text_size }, packet_lines.temperature) });
+//     return count;
+// }
+
 pub fn format_web_page_writer(writer: *std.Io.Writer, lines: []const PACKET_TYPE) !usize {
     const prior_length = writer.end;
     const separator = "<br>";
@@ -176,13 +189,19 @@ fn format_webgraph(allocator: std.mem.Allocator, lines: []const PACKET_TYPE) std
 
 test "webgraph procedure && dummy write" {
     const alloc = std.testing.allocator;
+    const dummy_buffer_size: usize = 64;
 
-    var points: std.ArrayList(u8) = try .initCapacity(alloc, 256);
+    var points: std.ArrayList(u8) = try .initCapacity(alloc, template.len);
     defer points.deinit(alloc);
-    try points.resize(alloc, 64);
+    try points.resize(alloc, dummy_buffer_size);
 
-    const pkt_list: [100_000]PACKET_TYPE = @splat(PACKET_TYPE{ .seconds = null, .temperature = 0.1 });
-    var dummywriter: std.Io.Writer.Discarding = .init(points.items[0..64]);
+    const count: usize = 100_000;
+    var pkt_list: [count]PACKET_TYPE = undefined;
+    for (0..count) |idx| {
+        pkt_list[idx] = PACKET_TYPE{ .seconds = null, .temperature = remap(f32, .{ 0, @floatFromInt(count) }, .{ -15.0, 100.0 }, @floatFromInt(idx)) };
+    }
+
+    var dummywriter: std.Io.Writer.Discarding = .init(points.items[0..dummy_buffer_size]);
     _ = try format_web_page_writer(&dummywriter.writer, &pkt_list);
     const dummy_out = dummywriter.count;
 
@@ -190,7 +209,7 @@ test "webgraph procedure && dummy write" {
     var writer: std.Io.Writer = .fixed(points.items);
     const writer_out = try format_web_page_writer(&writer, &pkt_list);
 
-    var buf: std.ArrayList(u8) = try .initCapacity(alloc, 1100);
+    var buf: std.ArrayList(u8) = try .initCapacity(alloc, template.len);
     defer buf.deinit(alloc);
     try format_web_page(alloc, &pkt_list, &buf);
 
