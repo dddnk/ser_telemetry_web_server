@@ -48,6 +48,33 @@ fn listen_serial_webserver_writer(alloc: std.mem.Allocator, reader: *std.Io.Read
     }
 }
 
+/// Ultimate form for speed and correctness, but fixed-size.
+/// Listens for data incoming, parses, formats and writes as a webpage.
+/// Does not allocate memory at all, making it faster, but has to guess how much memory it will need.
+/// This means it can be wrong, and may return WriteFailed if so.
+fn listen_serial_webserver_fixed(reader: *std.Io.Reader, line_buffer: []web.PACKET_TYPE, serverctx: *web.WebserverContext) !void {
+    std.log.debug("Initial page buffer size: {}", .{serverctx.page_length});
+    var counter: u32 = 0;
+
+    while (reader.takeDelimiterExclusive('\n')) |line| {
+        reader.toss(1);
+        // Skip if in invalid form
+        if (web.packet.DataPacket.from_slice_legacy(line)) |pkt| {
+            line_buffer[counter] = pkt;
+            var writer: std.Io.Writer = .fixed(serverctx.webpage_buffer.items);
+            const new_size = try web.format_web_page_writer(&writer, line_buffer.items);
+            std.log.debug("New size: {}", .{new_size});
+            serverctx.page_length = new_size;
+            counter +%= 1;
+        } else |err| {
+            std.log.warn("Skipping packet \"{s}\" due to {s}.", .{ line, @errorName(err) });
+        }
+    } else |err| {
+        if (err != error.EndOfStream) {
+            return err;
+        }
+    }
+}
 /// Reads the given data, and uses the writing page formatter to write to a given file.
 /// Good for debugging, or for sidestepping the need for an http server in memory constrained scenarios.
 /// Assumes that it will recieve data piece by piece, inefficient if all done in one go.
@@ -97,7 +124,7 @@ pub fn server_start(io: std.Io, allocator: std.mem.Allocator, reader: *std.Io.Re
 
     // prerender webpage so there is not an empty page.
     try web.format_web_page(allocator, line_buffer.items, &page_buffer);
-    var wsc: web.WebserverContext = .{ .webpage_buffer = &page_buffer, .page_length = initial_page_size };
+    var wsc: web.WebserverContext = .{ .webpage_buffer = &page_buffer, .page_length = initial_page_size, .counter = 0 };
 
     var ser_pro: std.Thread = try .spawn(.{}, listen_serial_webserver, .{ allocator, reader, &line_buffer, &wsc });
     // var ser_pro: std.Thread = try .spawn(.{}, listen_serial_webserver_writer, .{ allocator, reader, &line_buffer, &wsc });
@@ -106,6 +133,24 @@ pub fn server_start(io: std.Io, allocator: std.mem.Allocator, reader: *std.Io.Re
     try web.start(io, allocator, port, &wsc);
 }
 
+pub fn server_start_fixed(io: std.Io, allocator: std.mem.Allocator, reader: *std.Io.Reader, port: u16, page_bufsize: usize, line_cap: usize) !void {
+    // Holds incoming packets.
+    var line_buffer = try allocator.alloc(web.PACKET_TYPE, line_cap);
+    defer allocator.free(line_buffer);
+    // For our generated page.
+    var page_buffer = try allocator.alloc(u8, page_bufsize);
+    defer allocator.free(page_buffer);
+
+    // prerender webpage so there is not an empty page.
+    var writer: std.Io.Writer = .fixed(page_buffer);
+    const initial_page_size = try web.format_web_page_writer(&writer, line_buffer);
+    var wsc: web.WebserverContext = .{ .webpage_buffer = &page_buffer, .page_length = initial_page_size, .counter = 0 };
+
+    var ser_pro: std.Thread = try .spawn(.{}, listen_serial_webserver_fixed, .{ reader, line_buffer, &wsc });
+    defer ser_pro.join();
+
+    try web.start(io, allocator, port, &wsc);
+}
 // Test stuff
 test {
     _ = @import("webserver.zig");

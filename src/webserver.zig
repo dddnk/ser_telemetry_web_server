@@ -11,7 +11,7 @@ const MAX_WORKERS: u16 = 2;
 
 pub const PACKET_TYPE: type = packet.DataPacket;
 
-pub const WebserverContext = struct { webpage_buffer: *std.ArrayList(u8), page_length: usize };
+pub const WebserverContext = struct { webpage_buffer: *std.ArrayList(u8), page_length: usize, counter: u32 };
 
 /// Start http web server
 pub fn start(io: std.Io, allocator: std.mem.Allocator, port: u16, app_state: *WebserverContext) !void {
@@ -77,19 +77,6 @@ const WebgraphConfig = struct {
     text_size: f32,
 };
 
-// pub fn delta_webpage_check(pkt: PACKET_TYPE) usize {
-//     var count: usize = 0;
-//     const sizing = WebgraphConfig{
-//         .width = 500,
-//         .height = 210,
-//         .graph_padding = 7,
-//         .text_size = 7,
-//     };
-//     count += std.fmt.count("{d:7.2} *C{s}", .{ pkt.temperature, "" });
-//     count += std.fmt.count(" {},{} ", @as(f32, @floatFromInt(sizing.width)) - sizing.graph_padding, remap(f32, .{ min_temp, max_temp }, .{ @as(f32, @floatFromInt(sizing.height)) - sizing.text_size, sizing.text_size }, packet_lines.temperature) });
-//     return count;
-// }
-
 /// Formats an html webpage from the given packets.
 /// Uses a writer given to it, so it uses the memory it is given, and does not allocate.
 /// Returns the final size of the webpage.
@@ -99,20 +86,13 @@ pub fn format_web_page_writer(writer: *std.Io.Writer, lines: []const PACKET_TYPE
     const separator = "<br>";
     // This is used to keep track of length changes when formatting.
     var word_offset: isize = 0;
-
-    const line_cap: usize = 19;
-
     _ = try writer.write(template[0..replace_start]);
 
     // Temperature logs
-    {
-        const max_lines: usize = @min(lines.len, line_cap);
-        const offset: usize = lines.len - (max_lines);
-
-        for (0..max_lines) |line_id| {
-            try writer.print("{d:7.2} *C{s}", .{ lines[offset + line_id].temperature, if (line_id != max_lines - 1) separator else "" });
-        }
-    } // Shift offset.
+    for (lines, 0..) |line, line_id| {
+        try writer.print("{d:7.2} *C{s}", .{ line.temperature, if (line_id != lines.len - 1) separator else "" });
+    }
+    // Shift offset.
     word_offset = @as(isize, @intCast(writer.end)) - @as(isize, @intCast(template.len));
     // Graph
     const graph_token = "[#graph]";
