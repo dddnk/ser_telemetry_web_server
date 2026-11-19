@@ -3,7 +3,9 @@ const std = @import("std");
 const Io = std.Io;
 const web = @import("webserver.zig");
 
-/// Listens to a stream of data. For webserver.
+/// Listens for data incoming, parses, formats and writes as a webpage.
+/// When it creates the memory, it allocates as it writes, making it reliable, but slightly slower.
+/// Older version.
 fn listen_serial_webserver(alloc: std.mem.Allocator, reader: *std.Io.Reader, line_buffer: *std.ArrayList(web.PACKET_TYPE), serverctx: *web.WebserverContext) !void {
     while (reader.takeDelimiterExclusive('\n')) |line| {
         reader.toss(1);
@@ -20,7 +22,9 @@ fn listen_serial_webserver(alloc: std.mem.Allocator, reader: *std.Io.Reader, lin
         }
     }
 }
-/// Experimental.
+/// Listens for data incoming, parses, formats and writes as a webpage.
+/// Allocates memory once per read cycle, making it faster, but has to guess how much memory it will need.
+/// This means it can be wrong, and may return WriteFailed if so.
 fn listen_serial_webserver_writer(alloc: std.mem.Allocator, reader: *std.Io.Reader, line_buffer: *std.ArrayList(web.PACKET_TYPE), serverctx: *web.WebserverContext) !void {
     std.log.debug("Initial page buffer size: {}", .{serverctx.page_length});
 
@@ -44,6 +48,9 @@ fn listen_serial_webserver_writer(alloc: std.mem.Allocator, reader: *std.Io.Read
     }
 }
 
+/// Reads the given data, and uses the writing page formatter to write to a given file.
+/// Good for debugging, or for sidestepping the need for an http server in memory constrained scenarios.
+/// Assumes that it will recieve data piece by piece, inefficient if all done in one go.
 pub fn filewriter_server(io: std.Io, allocator: std.mem.Allocator, reader: *std.Io.Reader, out_path: []const u8) !void {
     // Holds incoming packets.
     var line_buffer: std.ArrayList(web.PACKET_TYPE) = try .initCapacity(allocator, 100);
@@ -77,7 +84,8 @@ pub fn filewriter_server(io: std.Io, allocator: std.mem.Allocator, reader: *std.
     }
 }
 
-/// Start web server, listening to serial.
+/// Initializes and runs the web server and serial reader & formatter.
+/// Allocates resources, and shares data across separate threads.
 pub fn server_start(io: std.Io, allocator: std.mem.Allocator, reader: *std.Io.Reader, port: u16) !void {
     const initial_page_size: usize = web.template.len + 100;
     // Holds incoming packets.

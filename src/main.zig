@@ -39,7 +39,7 @@ pub fn main(init: std.process.Init) !void {
     // The parameters for `main`. Parameters for the subcommands are specified further down.
     const main_params = comptime clap.parseParamsComptime(
         \\-h, --help  Display this help and exit.
-        \\<command>   Run (list (devices) , debug, server)
+        \\<command>   Run (list (devices) , debug, server, file writer)
         \\
     );
     var diag = clap.Diagnostic{};
@@ -94,7 +94,7 @@ pub fn debug_listen(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
     }
 }
 
-/// Creates a server to listen from.
+/// Takes data from the given input and writes to a given filepath.
 pub fn filewriter_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
     const server_subcommands = enum {
         /// Read serial device via COM port.
@@ -132,8 +132,9 @@ pub fn filewriter_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.A
     var read_buffer: [128]u8 = undefined;
     // The port set by arguments, or the default one.
     //
-    const out_path = "./out.html";
+    const out_path = results.positionals[1] orelse return error.MissingPath;
 
+    // Check if file exists, and create it if it does not.
     std.Io.Dir.cwd().access(io, out_path, .{}) catch |err| {
         switch (err) {
             error.FileNotFound => {

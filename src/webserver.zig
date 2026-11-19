@@ -34,7 +34,10 @@ fn home_page(app_state: *WebserverContext, _: *httpz.Request, res: *httpz.Respon
     res.header("Access-Control-Allow-Origin", "*");
 }
 
-///
+/// Legacy, but still used for the moment.
+/// Formats an html webpage from the given packets.
+/// Allocates it's own memory as it goes, when needed.
+/// Makes it slow, and a tad constrained, but reliable.
 pub fn format_web_page(allocator: std.mem.Allocator, lines: []const PACKET_TYPE, buffer: *std.ArrayList(u8)) error{OutOfMemory}!void {
     const separator = "<br>";
     // This is used to keep track of length changes when formatting.
@@ -87,6 +90,10 @@ const WebgraphConfig = struct {
 //     return count;
 // }
 
+/// Formats an html webpage from the given packets.
+/// Uses a writer given to it, so it uses the memory it is given, and does not allocate.
+/// Returns the final size of the webpage.
+/// Faster and more versatile, but needs to be given enough memory to work with.
 pub fn format_web_page_writer(writer: *std.Io.Writer, lines: []const PACKET_TYPE) !usize {
     const prior_length = writer.end;
     const separator = "<br>";
@@ -157,6 +164,7 @@ pub inline fn remap(comptime T: type, prev_range: [2]T, neo_range: [2]T, value: 
 }
 
 /// Creates an svg graph from info.
+/// Allocates it's own memory as it goes, when needed.
 fn format_webgraph(allocator: std.mem.Allocator, lines: []const PACKET_TYPE) std.mem.Allocator.Error![]u8 {
     const width: u32 = 500;
     const height: u32 = 210;
