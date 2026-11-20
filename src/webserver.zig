@@ -11,7 +11,7 @@ const MAX_WORKERS: u16 = 2;
 
 pub const PACKET_TYPE: type = packet.DataPacket;
 
-pub const WebserverContext = struct { webpage_buffer: *std.ArrayList(u8), page_length: usize, counter: u32, poll_interval: std.Io.Duration };
+pub const WebserverContext = struct { webpage_buffer: []u8, page_length: usize, counter: u32, poll_interval: std.Io.Duration };
 
 /// Start http web server
 pub fn start(io: std.Io, allocator: std.mem.Allocator, port: u16, app_state: *WebserverContext) !void {
@@ -30,44 +30,8 @@ pub fn start(io: std.Io, allocator: std.mem.Allocator, port: u16, app_state: *We
 /// HTML Home page return function
 fn home_page(app_state: *WebserverContext, _: *httpz.Request, res: *httpz.Response) !void {
     res.content_type = .HTML;
-    res.body = app_state.webpage_buffer.items;
+    res.body = app_state.webpage_buffer[0..app_state.page_length];
     res.header("Access-Control-Allow-Origin", "*");
-}
-
-/// Legacy, but still used for the moment.
-/// Formats an html webpage from the given packets.
-/// Allocates it's own memory as it goes, when needed.
-/// Makes it slow, and a tad constrained, but reliable.
-pub fn format_web_page(allocator: std.mem.Allocator, lines: []const PACKET_TYPE, buffer: *std.ArrayList(u8)) error{OutOfMemory}!void {
-    const separator = "<br>";
-    // This is used to keep track of length changes when formatting.
-    var word_offset: isize = 0;
-
-    const line_cap: usize = 19;
-
-    // Clear the buffer first.
-    buffer.clearRetainingCapacity();
-    try buffer.appendSlice(allocator, template);
-    // Temperature logs
-    {
-        const max_lines: usize = @min(lines.len, line_cap);
-        const offset: usize = lines.len - (max_lines);
-
-        var printed_lines: std.ArrayList(u8) = try .initCapacity(allocator, lines.len * line_cap);
-        defer printed_lines.deinit(allocator);
-
-        for (0..max_lines) |line_id| try printed_lines.print(allocator, "{d:7.2} *C{s}", .{ lines[offset + line_id].temperature, if (line_id != max_lines - 1) separator else "" });
-        try buffer.replaceRange(allocator, replace_start, replace_token.len, printed_lines.items);
-    } // Shift offset.
-    word_offset = @as(isize, @intCast(buffer.items.len)) - @as(isize, @intCast(template.len));
-    // Graph
-    const graph_token = "[#graph]";
-    const graph_token_start = comptime std.mem.find(u8, template, graph_token) orelse @compileError("could not find token for graph.");
-
-    const graph_fragment = try format_webgraph(allocator, lines);
-    defer allocator.free(graph_fragment);
-
-    try buffer.replaceRange(allocator, @as(usize, @intCast(@as(isize, @intCast(graph_token_start)) + word_offset)), graph_token.len, graph_fragment);
 }
 
 const WebgraphConfig = struct {
@@ -196,12 +160,6 @@ test "webgraph procedure && dummy write" {
     try points.resize(alloc, dummy_out + 16);
     var writer: std.Io.Writer = .fixed(points.items);
     const writer_out = try format_web_page_writer(&writer, &pkt_list);
-
-    var buf: std.ArrayList(u8) = try .initCapacity(alloc, template.len);
-    defer buf.deinit(alloc);
-    try format_web_page(alloc, &pkt_list, &buf);
-
-    try std.testing.expectEqualStrings(buf.items, points.items[0..writer_out]);
 
     try std.testing.expectEqual(writer_out, dummy_out);
 }
