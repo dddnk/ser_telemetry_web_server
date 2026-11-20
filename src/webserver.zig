@@ -11,7 +11,7 @@ const MAX_WORKERS: u16 = 2;
 
 pub const PACKET_TYPE: type = packet.DataPacket;
 
-pub const WebserverContext = struct { webpage_buffer: *std.ArrayList(u8), page_length: usize, counter: u32 };
+pub const WebserverContext = struct { webpage_buffer: *std.ArrayList(u8), page_length: usize, counter: u32, poll_interval: std.Io.Duration };
 
 /// Start http web server
 pub fn start(io: std.Io, allocator: std.mem.Allocator, port: u16, app_state: *WebserverContext) !void {
