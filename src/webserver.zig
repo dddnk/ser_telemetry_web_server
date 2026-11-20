@@ -85,12 +85,12 @@ pub fn format_web_page_writer(writer: *std.Io.Writer, lines: []const PACKET_TYPE
     }
     try writer.print("<svg viewbox=\"0 0 {} {}\">\n<polyline points=\"", .{ sizing.width, sizing.height });
     for (lines, 0..) |packet_lines, idx| {
-        try writer.print(" {},{} ", .{ remap(f32, [2]f32{ 0, @floatFromInt(lines.len - 1) }, .{ sizing.graph_padding, @as(f32, @floatFromInt(sizing.width)) - sizing.graph_padding }, @floatFromInt(idx)), remap(f32, .{ min_temp, max_temp }, .{ @as(f32, @floatFromInt(sizing.height)) - sizing.text_size, sizing.text_size }, packet_lines.temperature) });
+        try writer.print(" {d:7.2},{d:7.2} ", .{ remap(f32, [2]f32{ 0, @floatFromInt(lines.len - 1) }, .{ sizing.graph_padding, @as(f32, @floatFromInt(sizing.width)) - sizing.graph_padding }, @floatFromInt(idx)), remap(f32, .{ min_temp, max_temp }, .{ @as(f32, @floatFromInt(sizing.height)) - sizing.text_size, sizing.text_size }, packet_lines.temperature) });
     }
     try writer.print("\" style=\"fill:none;stroke:var(--foreground-colour);vector-effect: non-scaling-stroke;stroke-width:1px\" />", .{});
     // Min and max legend
-    try writer.print("<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{} *C</text>", .{ sizing.text_size, sizing.text_size, max_temp });
-    try writer.print("<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{} *C</text>", .{ sizing.height, sizing.text_size, min_temp });
+    try writer.print("<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{d:7.2} *C</text>", .{ sizing.text_size, sizing.text_size, max_temp });
+    try writer.print("<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{d:7.2} *C</text>", .{ sizing.height, sizing.text_size, min_temp });
 
     try writer.print("</svg>", .{});
     // -----------------
@@ -105,38 +105,6 @@ pub fn format_web_page_writer(writer: *std.Io.Writer, lines: []const PACKET_TYPE
 
 pub inline fn remap(comptime T: type, prev_range: [2]T, neo_range: [2]T, value: T) T {
     return ((neo_range[1] - neo_range[0]) * ((value - prev_range[0]) / (prev_range[1] - prev_range[0]))) + neo_range[0];
-}
-
-/// Creates an svg graph from info.
-/// Allocates it's own memory as it goes, when needed.
-fn format_webgraph(allocator: std.mem.Allocator, lines: []const PACKET_TYPE) std.mem.Allocator.Error![]u8 {
-    const width: u32 = 500;
-    const height: u32 = 210;
-    const graph_padding: f32 = 7;
-    const text_size: f32 = 7;
-
-    // Get minimum and maximum temperature
-    var min_temp: f32 = std.math.inf(f32);
-    var max_temp: f32 = -std.math.inf(f32);
-    for (lines) |packet_line| {
-        min_temp = @min(min_temp, packet_line.temperature);
-        max_temp = @max(max_temp, packet_line.temperature);
-    }
-
-    var temp_lines: std.ArrayList(u8) = try .initCapacity(allocator, 100 + (lines.len * 6));
-    defer temp_lines.deinit(allocator);
-    try temp_lines.print(allocator, "<svg viewbox=\"0 0 {} {}\">\n", .{ width, height });
-    try temp_lines.print(allocator, "<polyline points=\"", .{});
-    for (lines, 0..) |packet_lines, idx| {
-        try temp_lines.print(allocator, " {},{} ", .{ remap(f32, [2]f32{ 0, @floatFromInt(lines.len - 1) }, .{ graph_padding, @as(f32, @floatFromInt(width)) - graph_padding }, @floatFromInt(idx)), remap(f32, .{ min_temp, max_temp }, .{ @as(f32, @floatFromInt(height)) - text_size, text_size }, packet_lines.temperature) });
-    }
-    try temp_lines.print(allocator, "\" style=\"fill:none;stroke:var(--foreground-colour);vector-effect: non-scaling-stroke;stroke-width:1px\" />", .{});
-    // Min and max legend
-    try temp_lines.print(allocator, "<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{} *C</text>", .{ text_size, text_size, max_temp });
-    try temp_lines.print(allocator, "<text x=\"0\" y=\"{}\" fill=\"var(--foreground-colour)\" font-size=\"{}\" \">{} *C</text>", .{ height, text_size, min_temp });
-
-    try temp_lines.print(allocator, "</svg>", .{});
-    return temp_lines.toOwnedSlice(allocator);
 }
 
 test "webgraph procedure && dummy write" {

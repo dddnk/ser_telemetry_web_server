@@ -3,12 +3,10 @@ const std = @import("std");
 const Io = std.Io;
 const web = @import("webserver.zig");
 
-/// Ultimate form for speed and correctness, but fixed-size.
 /// Listens for data incoming, parses, formats and writes as a webpage.
 /// Does not allocate memory at all, making it faster, but has to guess how much memory it will need.
 /// This means it can be wrong, and may return WriteFailed if so.
 fn listen_serial_webserver(io: std.Io, reader: *std.Io.Reader, line_buffer: []web.PACKET_TYPE, serverctx: *web.WebserverContext) !void {
-    std.log.debug("Initial page buffer size: {}", .{serverctx.page_length});
     var counter: u32 = 0;
 
     while (reader.takeDelimiterExclusive('\n')) |line| {
@@ -18,7 +16,6 @@ fn listen_serial_webserver(io: std.Io, reader: *std.Io.Reader, line_buffer: []we
             line_buffer[counter % line_buffer.len] = pkt;
             var writer: std.Io.Writer = .fixed(serverctx.webpage_buffer);
             const new_size = try web.format_web_page_writer(&writer, line_buffer);
-            std.log.debug("New size: {}", .{new_size});
             serverctx.page_length = new_size;
             counter +%= 1;
         } else |err| {
@@ -80,6 +77,7 @@ pub fn server_start(io: std.Io, gpa: std.mem.Allocator, reader: *std.Io.Reader, 
     // prerender webpage so there is not an empty page.
     var writer: std.Io.Writer = .fixed(page_buffer);
     const initial_page_size = try web.format_web_page_writer(&writer, line_buffer);
+    std.log.info("Page capacity: {}/{}b, max lines: {}", .{ initial_page_size, page_bufsize, line_cap });
     var wsc: web.WebserverContext = .{ .webpage_buffer = page_buffer, .page_length = initial_page_size, .counter = 0, .poll_interval = .zero };
 
     var ser_pro: std.Thread = try .spawn(.{}, listen_serial_webserver, .{ io, reader, line_buffer, &wsc });

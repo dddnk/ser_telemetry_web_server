@@ -227,7 +227,7 @@ pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
 
                 var reader = serial.reader(io, &read_buffer);
 
-                try ser_broadcast.server_start_fixed(io, gpa, &reader.interface, decided_port, buffer_size, line_size);
+                try ser_broadcast.server_start(io, gpa, &reader.interface, decided_port, buffer_size, line_size);
             } else {
                 std.log.warn(std.fmt.comptimePrint("TTYUSB source not available on {s}.\n", .{@tagName(builtin.os.tag)}), .{});
             }
@@ -239,7 +239,7 @@ pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
 
             var reader = handle.reader(io, &read_buffer);
 
-            try ser_broadcast.server_start_fixed(io, gpa, &reader.interface, decided_port, buffer_size, line_size);
+            try ser_broadcast.server_start(io, gpa, &reader.interface, decided_port, buffer_size, line_size);
         },
         .stdin => {
             var handle = std.Io.File.stdin();
@@ -247,7 +247,7 @@ pub fn server_entry(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.
 
             var reader = handle.reader(io, &read_buffer);
 
-            try ser_broadcast.server_start_fixed(io, gpa, &reader.interface, decided_port, buffer_size, line_size);
+            try ser_broadcast.server_start(io, gpa, &reader.interface, decided_port, buffer_size, line_size);
         },
     }
 }
